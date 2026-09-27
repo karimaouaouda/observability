@@ -1,0 +1,8 @@
+.env
+*.local
+.DS_Store
+
+# Local credentials, certificates, and generated data must not be committed.
+*.htpasswd
+*.key
+*.pem
