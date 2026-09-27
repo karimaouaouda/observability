@@ -17,6 +17,21 @@ scrape_configs:
     static_configs:
       - targets: ["grafana:3000"]
 
+  - job_name: droven_application
+    scheme: https
+    metrics_path: /api/v1/observability/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/droven_metrics.token
+    static_configs:
+      - targets:
+          - droven.karimaouaouda.space
+        labels:
+          app: drovenai
+          service: backend
+          environment: production
+          instance: droven.karimaouaouda.space
+
   - job_name: applications
     file_sd_configs:
       - files:
@@ -28,4 +43,3 @@ scrape_configs:
       - files:
           - /etc/prometheus/targets/hosts.yml
         refresh_interval: 30s
-

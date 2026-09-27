@@ -150,6 +150,9 @@ create only missing entries:
 - Prometheus: `http://prometheus:9090`
 - Loki: `http://loki:3100`
 
+See [Connect Grafana to Prometheus and Loki](docs/connect-grafana-datasources.md)
+for complete UI, validation, and troubleshooting instructions.
+
 ## Adding Prometheus targets
 
 Add application endpoints to `prometheus/targets/applications.yml` and host,
@@ -172,6 +175,41 @@ on them:
 ```bash
 docker compose exec prometheus promtool check config /etc/prometheus/prometheus.yml
 ```
+
+### Authenticated Droven metrics target
+
+The `droven_application` job scrapes:
+
+```text
+https://droven.karimaouaouda.space/api/v1/observability/metrics
+```
+
+It sends a Bearer token read from a Git-ignored file. Before running preflight or
+deploying, create the real token file from the included example:
+
+```bash
+cp prometheus/secrets/droven_metrics.token.example \
+  prometheus/secrets/droven_metrics.token
+nano prometheus/secrets/droven_metrics.token
+```
+
+The file must contain only the token on one line, without a `Bearer ` prefix.
+Ensure the user inside the Prometheus container can read it. Do not commit this
+file; `.gitignore` excludes it.
+
+After changing the token or scrape configuration, validate and recreate
+Prometheus:
+
+```bash
+./scripts/preflight.sh
+docker compose run --rm prometheus \
+  promtool check config /etc/prometheus/prometheus.yml
+docker compose up -d prometheus
+docker compose logs --tail=100 prometheus
+```
+
+Confirm the `droven_application` target is `UP` at
+`http://127.0.0.1:9090/targets` on the VPS.
 
 This repository does not install exporters or agents; those belong in the
 future host/application instrumentation project.

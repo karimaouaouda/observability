@@ -57,6 +57,19 @@ for file in compose.yml prometheus/prometheus.yml prometheus/targets/application
   [[ -f "$ROOT_DIR/$file" ]] && ok "$file exists" || fail "$file is missing"
 done
 
+DROVEN_TOKEN_FILE="$ROOT_DIR/prometheus/secrets/droven_metrics.token"
+if [[ ! -f "$DROVEN_TOKEN_FILE" ]]; then
+  fail "Droven scrape token is missing; create prometheus/secrets/droven_metrics.token"
+elif [[ ! -s "$DROVEN_TOKEN_FILE" ]]; then
+  fail "Droven scrape token file is empty"
+elif [[ $(wc -l < "$DROVEN_TOKEN_FILE") -gt 1 ]]; then
+  fail "Droven scrape token file must contain only the token on one line"
+elif grep -Eq '^[[:space:]]*(Bearer|Token)[[:space:]]+' "$DROVEN_TOKEN_FILE"; then
+  fail "Droven token file must not include the Bearer prefix"
+else
+  ok "Droven scrape token file exists and is non-empty"
+fi
+
 if [[ -z "${GRAFANA_DATA_VOLUME:-}" ]]; then
   fail "GRAFANA_DATA_VOLUME is not configured"
 elif (( docker_ready == 1 )); then

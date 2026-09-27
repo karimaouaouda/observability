@@ -55,6 +55,7 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro
+      - ./prometheus/secrets:/etc/prometheus/secrets:ro
       - prometheus_data:/prometheus
     networks:
       - observability
