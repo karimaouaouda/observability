@@ -1,0 +1,23 @@
+# SECURITY: never expose auth-disabled Loki anonymously to the Internet.
+# Put this endpoint behind a private VPN/network, an IP allow-list, Basic Auth,
+# or another explicit authentication layer. The htpasswd path is a placeholder.
+server {
+    listen 443 ssl http2;
+    server_name loki.example.com;
+
+    ssl_certificate     /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+
+    location / {
+        # Example protection; additionally restrict source IPs where possible.
+        auth_basic "Loki ingestion";
+        auth_basic_user_file /etc/nginx/loki.htpasswd;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_pass http://127.0.0.1:3100;
+    }
+}
+

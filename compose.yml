@@ -1,0 +1,101 @@
+name: observability
+
+services:
+  grafana:
+    # Preserved from services/grafana/docker-compose.yaml. Do not upgrade here.
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.2.2}
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      # 0.0.0.0 preserves the old deployment. Change to 127.0.0.1 only after
+      # confirming the host NGINX configuration uses this port.
+      - "${GRAFANA_BIND_ADDRESS:-0.0.0.0}:${GRAFANA_PORT:-3011}:3000"
+    environment:
+      GF_SERVER_DOMAIN: ${GRAFANA_DOMAIN:?Set GRAFANA_DOMAIN in .env}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_DOMAIN:?Set GRAFANA_DOMAIN in .env}
+      GF_SERVER_ENFORCE_DOMAIN: "true"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Set GRAFANA_ADMIN_USER in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: lax
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "true"
+      GF_LOG_MODE: console
+      GF_LOG_LEVEL: info
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.15.0}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
+      - prometheus_data:/prometheus
+    networks:
+      - observability
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  loki:
+    image: ${LOKI_IMAGE:-grafana/loki:3.7.7}
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yml
+    ports:
+      - "${LOKI_BIND_ADDRESS:-127.0.0.1}:${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    networks:
+      - observability
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # This is the existing volume. external:true prevents accidental creation.
+  grafana_data:
+    external: true
+    name: ${GRAFANA_DATA_VOLUME:?Set GRAFANA_DATA_VOLUME to the existing volume name}
+  prometheus_data:
+    name: observability_prometheus_data
+  loki_data:
+    name: observability_loki_data
+
+networks:
+  observability:
+    external: true
+    name: observability

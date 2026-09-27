@@ -1,0 +1,96 @@
+services:
+  grafana:
+    image: grafana/grafana:13.2.2
+    container_name: grafana
+
+    restart: unless-stopped
+
+    ports:
+      # Only expose Grafana locally on the VPS.
+      # Nginx / Traefik should expose it publicly through HTTPS.
+      - "3011:3000"
+
+    environment:
+      # -------------------------------------------------------
+      # Server
+      # -------------------------------------------------------
+      GF_SERVER_DOMAIN: ${GRAFANA_DOMAIN}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_DOMAIN}
+      GF_SERVER_ENFORCE_DOMAIN: "true"
+
+      # -------------------------------------------------------
+      # Administrator
+      # -------------------------------------------------------
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+
+      # -------------------------------------------------------
+      # Security
+      # -------------------------------------------------------
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: lax
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+
+      # Prevent public account registration
+      GF_USERS_ALLOW_SIGN_UP: "false"
+
+      # Prevent anonymous dashboard access
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+
+      # -------------------------------------------------------
+      # Analytics / telemetry
+      # -------------------------------------------------------
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+
+      # Grafana can still tell you when a new version exists
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "true"
+
+      # -------------------------------------------------------
+      # Logging
+      # -------------------------------------------------------
+      GF_LOG_MODE: console
+      GF_LOG_LEVEL: info
+
+    volumes:
+      # Grafana database, dashboards, users, organizations, etc.
+      - grafana_data:/var/lib/grafana
+
+      # Uncomment these later when you start provisioning
+      # dashboards/data sources through files.
+      #
+      # - ./provisioning:/etc/grafana/provisioning:ro
+      # - ./dashboards:/var/lib/grafana/dashboards:ro
+
+    networks:
+      - observability
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:3000/api/health >/dev/null 2>&1 || exit 1"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+volumes:
+  grafana_data:
+    name: grafana_data
+
+
+networks:
+  observability:
+    name: observability
+    driver: bridge
